@@ -1,4 +1,3 @@
-from rest_framework import serializers
 
 # TODO: define your serializers here
 # from .models import Item

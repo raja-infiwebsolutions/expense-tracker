@@ -1,0 +1,24 @@
+<tr data-expense-id="{{ expense.id }}" id="expense-row-{{ expense.id }}">
+  <td>{{ expense.employee.get_full_name }}</td>
+  <td>{{ expense.category }}</td>
+  <td>${{ expense.amount }}</td>
+  <td>{{ expense.submitted_at|date:"Y-m-d H:i" }}</td>
+  <td>
+    <div class="notes-excerpt">{% if expense.notes %}{{ expense.notes|truncatechars:80 }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
+  </td>
+  <td>
+    <span id="status-{{ expense.id }}" class="badge {% if expense.status == 'SUBMITTED' %}bg-warning text-dark{% elif expense.status == 'APPROVED' %}bg-success{% elif expense.status == 'REJECTED' %}bg-danger{% else %}bg-secondary{% endif %}">
+      {% if expense.status == 'SUBMITTED' %}Submitted{% elif expense.status == 'APPROVED' %}Approved{% elif expense.status == 'REJECTED' %}Rejected{% else %}{{ expense.status }}{% endif %}
+    </span>
+  </td>
+  <td class="text-end">
+    <div class="d-flex justify-content-end gap-2">
+      <button type="button" class="btn btn-sm btn-success btn-approve" data-expense-id="{{ expense.id }}" {% if expense.status != 'SUBMITTED' %}disabled{% endif %}>
+        <i class="bi bi-check-lg"></i> <span class="d-none d-sm-inline">Approve</span>
+      </button>
+      <button type="button" class="btn btn-sm btn-danger btn-reject" data-expense-id="{{ expense.id }}" {% if expense.status != 'SUBMITTED' %}disabled{% endif %}>
+        <i class="bi bi-x-lg"></i> <span class="d-none d-sm-inline">Reject</span>
+      </button>
+    </div>
+  </td>
+</tr>

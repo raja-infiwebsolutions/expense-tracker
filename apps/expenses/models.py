@@ -1,10 +1,6 @@
-"""
-Expense model for Expense Tracker
-Upload path for receipts: receipts/%Y/%m/
-Acceptance criteria: see ticket — fields, choices, constraints, ordering
-"""
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 
 
 class Expense(models.Model):
@@ -53,12 +49,19 @@ class Expense(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-        constraints = [
-            models.CheckConstraint(check=models.Q(amount__gte=0), name="expense_amount_positive")
-        ]
 
-    def __str__(self):
-        return f"{self.title} — {self.amount}"
+    def __str__(self) -> str:
+        return f"{self.title} - {self.amount} ({self.status})"
 
+    def approve(self, reviewer: settings.AUTH_USER_MODEL) -> None:
+        self.status = self.Status.APPROVED
+        self.reviewed_by = reviewer
+        self.reviewed_at = timezone.now()
+        self.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"]) 
 
-__all__ = ["Expense"]
+    def reject(self, reviewer: settings.AUTH_USER_MODEL, notes: str) -> None:
+        self.status = self.Status.REJECTED
+        self.reviewed_by = reviewer
+        self.review_notes = notes
+        self.reviewed_at = timezone.now()
+        self.save(update_fields=["status", "reviewed_by", "review_notes", "reviewed_at", "updated_at"]) 
