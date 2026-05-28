@@ -43,4 +43,4 @@ htmlcov/
 .tox/
 
 # Migrations (keep these committed)
-# !*/migrations/*.py
+!*/migrations/*.py
