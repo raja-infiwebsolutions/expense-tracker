@@ -4,7 +4,6 @@ from .models import Expense
 
 @admin.register(Expense)
 class ExpenseAdmin(admin.ModelAdmin):
-    list_display = ("id", "title", "amount", "category", "status", "workspace", "submitted_by", "created_at")
-    search_fields = ("title", "description")
-    list_filter = ("status", "category")
-    readonly_fields = ("created_at", "updated_at")
+    list_display = ["title", "status", "submitted_by", "amount", "workspace", "created_at"]
+    list_filter = ["status", "category"]
+    search_fields = ["title", "submitted_by__username", "workspace__username"]
