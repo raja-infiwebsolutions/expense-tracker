@@ -20,17 +20,18 @@ class Expense(models.Model):
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
 
-    # NOTE: Assumes a Workspace model exists in an app named 'workspaces'.
-    # If different, update the FK string accordingly.
+    # If a Workspace model exists, consider changing this FK to 'workspaces.Workspace'.
     workspace = models.ForeignKey(
-        "workspaces.Workspace", on_delete=models.CASCADE, related_name="expenses"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="workspace_expenses",
     )
     title = models.CharField(max_length=255)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.CharField(max_length=20, choices=Category.choices)
     description = models.TextField(blank=True)
     receipt = models.FileField(upload_to="receipts/%Y/%m/", blank=True, null=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.SUBMITTED)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.SUBMITTED)
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -53,8 +54,11 @@ class Expense(models.Model):
     class Meta:
         ordering = ["-created_at"]
         constraints = [
-            models.CheckConstraint(check=models.Q(amount__gte=0), name="expenses_amount_non_negative")
+            models.CheckConstraint(check=models.Q(amount__gte=0), name="expense_amount_positive")
         ]
 
     def __str__(self):
         return f"{self.title} — {self.amount}"
+
+
+__all__ = ["Expense"]
