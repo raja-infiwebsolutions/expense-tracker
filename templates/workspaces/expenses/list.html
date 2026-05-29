@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}My Expenses — {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/expenses_page.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h3 mb-0">My Expenses</h1>
+  <div>
+    <button class="btn btn-outline-secondary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false" aria-controls="filtersCollapse">Filters</button>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-4 col-lg-3 mb-3">
+    <div class="collapse d-md-block" id="filtersCollapse">
+      {% include 'includes/filter_form.html' %}
+    </div>
+  </div>
+  <div class="col-md-8 col-lg-9">
+    {% comment %} If there is a page_obj provided, use it; otherwise try expenses {% endcomment %}
+    {% if page_obj and page_obj.object_list|length > 0 %}
+      {% include 'includes/expense_table.html' with expenses=page_obj.object_list %}
+      {% include 'includes/pagination.html' with page_obj=page_obj %}
+
+    {% elif expenses and expenses|length > 0 %}
+      {# Non-paginated list provided by the view; render it directly #}
+      {% include 'includes/expense_table.html' with expenses=expenses %}
+
+    {% else %}
+      {% comment %} Correctly detect whether any GET params were submitted; request.GET is a QueryDict and has a length {% endcomment %}
+      {% if request.GET|length > 0 %}
+        {# filters applied but no results #}
+        {% include 'includes/empty_state.html' with title="No expenses match your filters" message="Try adjusting or clearing filters to show more results." show_create=False %}
+      {% else %}
+        {% include 'includes/empty_state.html' with title="No expenses yet" message="You haven't added any expenses. Use the new expense form to create one." show_create=False %}
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // confirm delete actions
+  document.querySelectorAll('.expense-delete-form').forEach(function(form){
+    form.addEventListener('submit', function(e){
+      if (!confirm('Are you sure you want to delete this expense? This action cannot be undone.')) {
+        e.preventDefault();
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% load static %}
+<form method="get" class="card card-body mb-3">
+  <div class="mb-3">
+    <label for="id_status" class="form-label">Status</label>
+    <select id="id_status" name="status" class="form-select">
+      <option value="">All</option>
+      {% if statuses %}
+        {% for s in statuses %}
+          <option value="{{ s }}" {% if request.GET.status == s %}selected{% endif %}>{{ s|capfirst }}</option>
+        {% endfor %}
+      {% else %}
+        <option value="submitted" {% if request.GET.status == 'submitted' %}selected{% endif %}>Submitted</option>
+        <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>Approved</option>
+        <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>Rejected</option>
+      {% endif %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="id_category" class="form-label">Category</label>
+    <select id="id_category" name="category" class="form-select">
+      <option value="">All</option>
+      {% if categories %}
+        {% for c in categories %}
+          {% if c.name %}
+            <option value="{{ c.id }}" {% if request.GET.category|stringformat:"s" == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+          {% else %}
+            <option value="{{ c }}" {% if request.GET.category == c %}selected{% endif %}>{{ c }}</option>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        {% comment %} Fallback: build categories from displayed expenses if available {% endcomment %}
+        {% if page_obj %}
+          {% for e in page_obj.object_list %}
+            {% if e.category %}
+              <option value="{{ e.category }}" {% if request.GET.category == e.category %}selected{% endif %}>{{ e.category }}</option>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      {% endif %}
+    </select>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary">Apply</button>
+    <a href="?" class="btn btn-outline-secondary">Clear</a>
+  </div>
+</form>

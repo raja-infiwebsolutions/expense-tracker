@@ -1,0 +1,105 @@
+{% load static %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th scope="col">Date</th>
+        <th scope="col">Category</th>
+        <th scope="col" class="d-none d-sm-table-cell">Description</th>
+        <th scope="col">Amount</th>
+        <th scope="col">Receipt</th>
+        <th scope="col">Status</th>
+        <th scope="col" class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for expense in expenses %}
+      <tr>
+        <td class="text-nowrap">{{ expense.date|date:"Y-m-d" }}</td>
+        <td>{{ expense.category.name|default:expense.category }}</td>
+        <td class="d-none d-sm-table-cell text-muted small">{{ expense.description|default:'—' }}</td>
+        <td>{{ expense.amount }}</td>
+        <td>
+          {% if expense.receipt_url %}
+            <a href="{{ expense.receipt_url }}" target="_blank" rel="noopener">Download</a>
+          {% else %}
+            &mdash;
+          {% endif %}
+        </td>
+        <td>
+          {% comment %} Map statuses to badge classes: submitted -> blue, approved -> green, rejected -> red {% endcomment %}
+          {% if expense.status == 'approved' %}
+            <span class="badge bg-success">{{ expense.status|capfirst }}</span>
+          {% elif expense.status == 'rejected' %}
+            <span class="badge bg-danger">{{ expense.status|capfirst }}</span>
+          {% else %}
+            <span class="badge bg-primary">{{ expense.status|capfirst }}</span>
+          {% endif %}
+        </td>
+        <td class="text-end">
+          <div class="d-flex justify-content-end gap-2">
+            <a href="{% if expense.detail_url %}{{ expense.detail_url }}{% else %}#{% endif %}" class="btn btn-sm btn-outline-primary">View</a>
+
+            {% if expense.status == 'submitted' %}
+              {% if expense.delete_url %}
+                <form method="post" action="{{ expense.delete_url }}" class="d-inline-block expense-delete-form">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                </form>
+              {% else %}
+                <button type="button" class="btn btn-sm btn-outline-danger" disabled>Delete</button>
+              {% endif %}
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+
+      {% comment %} Mobile stacked fallback (visible on xs only) {% endcomment %}
+      <tr class="d-table-row d-sm-none">
+        <td colspan="7" class="p-0 border-0">
+          <div class="card my-2 d-sm-none">
+            <div class="card-body py-2">
+              <div class="d-flex justify-content-between">
+                <div>
+                  <strong>{{ expense.category.name|default:expense.category }}</strong>
+                  <div class="text-muted small">{{ expense.date|date:"Y-m-d" }}</div>
+                </div>
+                <div class="text-end">
+                  <div>{{ expense.amount }}</div>
+                  <div class="mt-1">
+                    {% if expense.status == 'approved' %}
+                      <span class="badge bg-success">{{ expense.status|capfirst }}</span>
+                    {% elif expense.status == 'rejected' %}
+                      <span class="badge bg-danger">{{ expense.status|capfirst }}</span>
+                    {% else %}
+                      <span class="badge bg-primary">{{ expense.status|capfirst }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-2 d-flex gap-2">
+                <a href="{% if expense.detail_url %}{{ expense.detail_url }}{% else %}#{% endif %}" class="btn btn-sm btn-outline-primary">View</a>
+                {% if expense.status == 'submitted' %}
+                  {% if expense.delete_url %}
+                    <form method="post" action="{{ expense.delete_url }}" class="d-inline-block expense-delete-form">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                    </form>
+                  {% else %}
+                    <button type="button" class="btn btn-sm btn-outline-danger" disabled>Delete</button>
+                  {% endif %}
+                {% endif %}
+
+                {% if expense.receipt_url %}
+                  <a href="{{ expense.receipt_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">Receipt</a>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
