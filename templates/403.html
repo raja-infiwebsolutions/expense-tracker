@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}403 Forbidden{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card border-danger">
+        <div class="card-body">
+          <h1 class="card-title text-danger">403 — Permission Denied</h1>
+          <div class="alert alert-danger" role="alert">
+            You do not have permission to access this resource. If you believe this is an error, please contact your administrator.
+          </div>
+          <a href="{% url 'expenses:index' %}" class="btn btn-primary">Back to Dashboard</a>
+          {% if not user.is_authenticated %}
+          <a href="{% url 'login' %}" class="btn btn-secondary ms-2">Login</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,6 +1,8 @@
+from django.urls import path
+from .views import ExpensesIndexView
 
-app_name = 'expenses'
+app_name = "expenses"
 
 urlpatterns = [
-    # TODO: add your URL patterns here
+    path("", ExpensesIndexView.as_view(), name="index"),
 ]
