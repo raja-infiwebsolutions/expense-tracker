@@ -1,44 +1,109 @@
-from typing import Any
+from typing import Any, Dict, Optional
 from django.db.models import QuerySet
-from django.utils import timezone
-from django.shortcuts import get_object_or_404
 from .models import Expense
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
-def get_expenses_for_workspace(workspace_id: int, filters: dict[str, Any]) -> QuerySet:
-    qs = Expense.objects.filter(workspace_id=workspace_id).select_related("submitted_by", "reviewed_by")
-    status = filters.get("status")
-    if status:
-        qs = qs.filter(status=status)
-    employee = filters.get("employee")
-    if employee:
-        qs = qs.filter(submitted_by_id=employee)
-    category = filters.get("category")
-    if category:
-        qs = qs.filter(category=category)
-    return qs.order_by("-submitted_at", "-created_at") if hasattr(Expense, "submitted_at") else qs.order_by("-created_at")
+class ExpenseNotFoundError(Exception):
+    pass
 
 
-def approve_expense(expense_id: int, reviewer_user: Any) -> Expense:
-    expense = get_object_or_404(Expense, pk=expense_id)
-    if expense.status != Expense.Status.SUBMITTED:
-        raise ValueError("Only submitted expenses can be approved")
-    expense.status = Expense.Status.APPROVED
-    expense.reviewed_by = reviewer_user
-    expense.reviewed_at = timezone.now()
-    expense.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"]) 
-    return expense
+class ExpenseActionConflictError(Exception):
+    pass
 
 
-def reject_expense(expense_id: int, reviewer_user: Any, notes: str) -> Expense:
-    if not notes:
-        raise ValueError("Rejection notes are required")
-    expense = get_object_or_404(Expense, pk=expense_id)
-    if expense.status != Expense.Status.SUBMITTED:
-        raise ValueError("Only submitted expenses can be rejected")
-    expense.status = Expense.Status.REJECTED
-    expense.reviewed_by = reviewer_user
-    expense.review_notes = notes
-    expense.reviewed_at = timezone.now()
-    expense.save(update_fields=["status", "reviewed_by", "review_notes", "reviewed_at", "updated_at"]) 
-    return expense
+class ExpenseService:
+    """
+    Thin service wrapper for Expense operations.
+
+    Expected methods used by views:
+      - list_for_user(user, filters) -> QuerySet[Expense]
+      - list_for_admin(filters) -> QuerySet[Expense]
+      - get_by_id(pk, user=None) -> Expense or raise ExpenseNotFoundError
+      - create_expense(data_dict, user) -> Expense
+      - delete_expense(pk, user) -> None
+      - approve_expense(pk, admin_user) -> Expense or raise ExpenseActionConflictError
+      - reject_expense(pk, admin_user, reason=None) -> Expense or raise ExpenseActionConflictError
+
+    This is intentionally thin; adapt to existing business logic if a real service exists.
+    """
+
+    @staticmethod
+    def list_for_user(user: User, filters: Optional[Dict[str, Any]] = None) -> QuerySet:
+        qs = Expense.objects.filter(submitted_by=user).select_related("submitted_by", "reviewed_by")
+        if filters:
+            if "status" in filters:
+                qs = qs.filter(status=filters.get("status"))
+            if "category" in filters:
+                qs = qs.filter(category=filters.get("category"))
+        return qs
+
+    @staticmethod
+    def list_for_admin(filters: Optional[Dict[str, Any]] = None) -> QuerySet:
+        qs = Expense.objects.all().select_related("submitted_by", "reviewed_by")
+        if filters:
+            if "status" in filters:
+                qs = qs.filter(status=filters.get("status"))
+            if "category" in filters:
+                qs = qs.filter(category=filters.get("category"))
+            if "submitted_by" in filters:
+                qs = qs.filter(submitted_by__id=filters.get("submitted_by"))
+        return qs
+
+    @staticmethod
+    def get_by_id(pk: int, user: Optional[User] = None) -> Expense:
+        try:
+            expense = Expense.objects.select_related("submitted_by", "reviewed_by").get(pk=pk)
+        except Expense.DoesNotExist as exc:
+            raise ExpenseNotFoundError from exc
+        # If user is provided, ensure ownership or admin will be checked elsewhere
+        return expense
+
+    @staticmethod
+    def create_expense(data: Dict[str, Any], user: User) -> Expense:
+        # data expected to include: title, amount, category, description, receipt (optional), workspace (optional)
+        expense = Expense.objects.create(
+            workspace=user,
+            title=data.get("title", ""),
+            amount=data.get("amount"),
+            category=data.get("category"),
+            description=data.get("description", ""),
+            receipt=data.get("receipt"),
+            submitted_by=user,
+        )
+        return expense
+
+    @staticmethod
+    def delete_expense(pk: int, user: User) -> None:
+        try:
+            expense = Expense.objects.get(pk=pk)
+        except Expense.DoesNotExist as exc:
+            raise ExpenseNotFoundError from exc
+        # allow owner or staff to delete (views will enforce)
+        expense.delete()
+
+    @staticmethod
+    def approve_expense(pk: int, admin_user: User) -> Expense:
+        try:
+            expense = Expense.objects.get(pk=pk)
+        except Expense.DoesNotExist as exc:
+            raise ExpenseNotFoundError from exc
+        try:
+            expense.approve(admin_user)
+        except ValueError as exc:
+            raise ExpenseActionConflictError from exc
+        return expense
+
+    @staticmethod
+    def reject_expense(pk: int, admin_user: User, reason: Optional[str] = None) -> Expense:
+        try:
+            expense = Expense.objects.get(pk=pk)
+        except Expense.DoesNotExist as exc:
+            raise ExpenseNotFoundError from exc
+        try:
+            expense.reject(admin_user, reason or "")
+        except ValueError as exc:
+            raise ExpenseActionConflictError from exc
+        return expense

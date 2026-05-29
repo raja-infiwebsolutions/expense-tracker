@@ -54,12 +54,18 @@ class Expense(models.Model):
         return f"{self.title} - {self.amount} ({self.status})"
 
     def approve(self, reviewer: settings.AUTH_USER_MODEL) -> None:
+        if self.status != self.Status.SUBMITTED:
+            raise ValueError("Only submitted expenses can be approved")
         self.status = self.Status.APPROVED
         self.reviewed_by = reviewer
         self.reviewed_at = timezone.now()
         self.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"]) 
 
     def reject(self, reviewer: settings.AUTH_USER_MODEL, notes: str) -> None:
+        if not notes:
+            raise ValueError("Rejection notes are required")
+        if self.status != self.Status.SUBMITTED:
+            raise ValueError("Only submitted expenses can be rejected")
         self.status = self.Status.REJECTED
         self.reviewed_by = reviewer
         self.review_notes = notes
