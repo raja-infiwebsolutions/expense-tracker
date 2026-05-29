@@ -12,11 +12,12 @@ class Expense(models.Model):
         OTHER = "other", "Other"
 
     class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
         SUBMITTED = "submitted", "Submitted"
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
 
-    # If a Workspace model exists, consider changing this FK to 'workspaces.Workspace'.
+    # workspace kept as a user owner placeholder
     workspace = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -27,7 +28,7 @@ class Expense(models.Model):
     category = models.CharField(max_length=20, choices=Category.choices)
     description = models.TextField(blank=True)
     receipt = models.FileField(upload_to="receipts/%Y/%m/", blank=True, null=True)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.SUBMITTED)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -35,6 +36,7 @@ class Expense(models.Model):
         blank=True,
         related_name="submitted_expenses",
     )
+    submitted_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -54,14 +56,23 @@ class Expense(models.Model):
         return f"{self.title} - {self.amount} ({self.status})"
 
     def approve(self, reviewer: settings.AUTH_USER_MODEL) -> None:
+        """Mark the expense as approved. Caller must ensure current status allows approval."""
         self.status = self.Status.APPROVED
         self.reviewed_by = reviewer
         self.reviewed_at = timezone.now()
-        self.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"]) 
+        self.save()
 
     def reject(self, reviewer: settings.AUTH_USER_MODEL, notes: str) -> None:
+        """Mark the expense as rejected and save review notes."""
         self.status = self.Status.REJECTED
         self.reviewed_by = reviewer
-        self.review_notes = notes
         self.reviewed_at = timezone.now()
-        self.save(update_fields=["status", "reviewed_by", "review_notes", "reviewed_at", "updated_at"]) 
+        self.review_notes = notes
+        self.save()
+
+    def submit(self, submitter: settings.AUTH_USER_MODEL) -> None:
+        """Mark the expense as submitted."""
+        self.status = self.Status.SUBMITTED
+        self.submitted_by = submitter
+        self.submitted_at = timezone.now()
+        self.save()

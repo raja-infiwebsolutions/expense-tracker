@@ -1,44 +1,101 @@
-from typing import Any
-from django.db.models import QuerySet
-from django.utils import timezone
-from django.shortcuts import get_object_or_404
+from typing import Optional
+from decimal import Decimal
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.core.files.uploadedfile import UploadedFile
+from django.contrib.auth import get_user_model
 from .models import Expense
 
-
-def get_expenses_for_workspace(workspace_id: int, filters: dict[str, Any]) -> QuerySet:
-    qs = Expense.objects.filter(workspace_id=workspace_id).select_related("submitted_by", "reviewed_by")
-    status = filters.get("status")
-    if status:
-        qs = qs.filter(status=status)
-    employee = filters.get("employee")
-    if employee:
-        qs = qs.filter(submitted_by_id=employee)
-    category = filters.get("category")
-    if category:
-        qs = qs.filter(category=category)
-    return qs.order_by("-submitted_at", "-created_at") if hasattr(Expense, "submitted_at") else qs.order_by("-created_at")
+User = get_user_model()
 
 
-def approve_expense(expense_id: int, reviewer_user: Any) -> Expense:
-    expense = get_object_or_404(Expense, pk=expense_id)
-    if expense.status != Expense.Status.SUBMITTED:
-        raise ValueError("Only submitted expenses can be approved")
-    expense.status = Expense.Status.APPROVED
-    expense.reviewed_by = reviewer_user
-    expense.reviewed_at = timezone.now()
-    expense.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"]) 
-    return expense
+class ExpenseService:
+    """Service layer for expense business logic."""
 
+    @staticmethod
+    def submit_expense(user: User, expense_data: dict, receipt_file: Optional[UploadedFile] = None) -> Expense:
+        """Create and submit an expense. Raises ValidationError on invalid data."""
+        required_fields = ["title", "amount", "category"]
+        missing = [f for f in required_fields if f not in expense_data or expense_data.get(f) in (None, "")]
+        if missing:
+            raise ValidationError({"missing_fields": f"Missing required fields: {', '.join(missing)}"})
 
-def reject_expense(expense_id: int, reviewer_user: Any, notes: str) -> Expense:
-    if not notes:
-        raise ValueError("Rejection notes are required")
-    expense = get_object_or_404(Expense, pk=expense_id)
-    if expense.status != Expense.Status.SUBMITTED:
-        raise ValueError("Only submitted expenses can be rejected")
-    expense.status = Expense.Status.REJECTED
-    expense.reviewed_by = reviewer_user
-    expense.review_notes = notes
-    expense.reviewed_at = timezone.now()
-    expense.save(update_fields=["status", "reviewed_by", "review_notes", "reviewed_at", "updated_at"]) 
-    return expense
+        # normalize amount
+        amount = expense_data["amount"]
+        try:
+            amount = Decimal(str(amount))
+        except Exception:
+            raise ValidationError({"amount": "Invalid amount value"})
+
+        with transaction.atomic():
+            expense = Expense(
+                workspace=expense_data.get("workspace") or user,
+                title=expense_data["title"],
+                amount=amount,
+                category=expense_data["category"],
+                description=expense_data.get("description", ""),
+            )
+            # save first to get a PK for FileField save
+            expense.save()
+
+            if receipt_file is not None:
+                # receipt_file is an UploadedFile or file-like
+                expense.receipt.save(receipt_file.name, receipt_file, save=True)
+
+            # mark submitted
+            expense.submit(submitter=user)
+
+        return expense
+
+    @staticmethod
+    def _get_expense_or_raise(expense_id: int) -> Expense:
+        try:
+            return Expense.objects.select_related("workspace", "submitted_by", "reviewed_by").get(pk=expense_id)
+        except Expense.DoesNotExist:
+            raise ValidationError({"expense": "Expense not found"})
+
+    @staticmethod
+    def approve_expense(user: User, expense_id: int) -> Expense:
+        """Approve a submitted expense. Raises ValidationError if not allowed."""
+        expense = ExpenseService._get_expense_or_raise(expense_id)
+        if expense.status != Expense.Status.SUBMITTED:
+            raise ValidationError({"status": "Only submitted expenses can be approved"})
+
+        with transaction.atomic():
+            expense.approve(reviewer=user)
+
+        return expense
+
+    @staticmethod
+    def reject_expense(user: User, expense_id: int, review_notes: str) -> Expense:
+        """Reject a submitted expense. review_notes required."""
+        if not review_notes or not review_notes.strip():
+            raise ValidationError({"review_notes": "Review notes are required to reject an expense."})
+
+        expense = ExpenseService._get_expense_or_raise(expense_id)
+        if expense.status != Expense.Status.SUBMITTED:
+            raise ValidationError({"status": "Only submitted expenses can be rejected"})
+
+        with transaction.atomic():
+            expense.reject(reviewer=user, notes=review_notes.strip())
+
+        return expense
+
+    @staticmethod
+    def delete_expense(user: User, expense_id: int) -> bool:
+        """Delete an expense if allowed. Removes receipt file from storage. Returns True on success."""
+        expense = ExpenseService._get_expense_or_raise(expense_id)
+        if expense.status == Expense.Status.APPROVED:
+            raise ValidationError({"status": "Approved expenses cannot be deleted"})
+
+        with transaction.atomic():
+            # remove receipt file from storage if present
+            if expense.receipt:
+                try:
+                    expense.receipt.delete(save=False)
+                except Exception as exc:  # catching storage exceptions
+                    # re-raise as ValidationError
+                    raise ValidationError({"receipt": f"Error deleting receipt file: {exc}"})
+            expense.delete()
+
+        return True
