@@ -92,6 +92,10 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
 }
 
+# Upload limits
+MAX_UPLOAD_SIZE = int(env("MAX_UPLOAD_SIZE", default=str(10 * 1024 * 1024)))  # 10 MB default
+ACCEPTED_UPLOAD_TYPES = env.list("ACCEPTED_UPLOAD_TYPES", default=["application/pdf", "image/png", "image/jpeg", "image/gif"]) 
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

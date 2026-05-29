@@ -4,6 +4,5 @@ from .models import Expense
 
 @admin.register(Expense)
 class ExpenseAdmin(admin.ModelAdmin):
-    list_display = ["title", "status", "submitted_by", "amount", "workspace", "created_at"]
-    list_filter = ["status", "category"]
-    search_fields = ["title", "submitted_by__username", "workspace__username"]
+    list_display = ["id", "title", "amount", "user", "workspace_id", "date", "created_at"]
+    search_fields = ["title", "receipt_original_name"]

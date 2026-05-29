@@ -1,8 +1,9 @@
+from rest_framework import serializers
+from .models import Expense
 
-# TODO: define your serializers here
-# from .models import Item
-# class ItemSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Item
-#         fields = '__all__'
-#         read_only_fields = ['id', 'created_at', 'updated_at']
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Expense
+        fields = "__all__"
+        read_only_fields = ("id", "created_at", "receipt_original_name", "receipt_content_type")

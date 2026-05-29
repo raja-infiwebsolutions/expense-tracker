@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Submit Expense — {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/expenses.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12 col-md-10 offset-md-1">
+    <h1 class="mb-4">Submit Expense</h1>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" id="expense-form" novalidate>
+      {% csrf_token %}
+
+      <div class="mb-3 row">
+        <label class="col-sm-3 col-form-label fw-semibold" for="id_title">{{ form.title.label }}</label>
+        <div class="col-sm-9">
+          {{ form.title }}
+          {% if form.title.help_text %}<div class="form-text">{{ form.title.help_text }}</div>{% endif %}
+          {% for error in form.title.errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="mb-3 row">
+        <label class="col-sm-3 col-form-label fw-semibold" for="id_amount">{{ form.amount.label }}</label>
+        <div class="col-sm-9">
+          {{ form.amount }}
+          {% if form.amount.help_text %}<div class="form-text">{{ form.amount.help_text }}</div>{% endif %}
+          {% for error in form.amount.errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="mb-3 row">
+        <label class="col-sm-3 col-form-label fw-semibold" for="id_date">{{ form.date.label }}</label>
+        <div class="col-sm-9">
+          {{ form.date }}
+          {% if form.date.help_text %}<div class="form-text">{{ form.date.help_text }}</div>{% endif %}
+          {% for error in form.date.errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="mb-3 row">
+        <label class="col-sm-3 col-form-label fw-semibold" for="id_description">{{ form.description.label }}</label>
+        <div class="col-sm-9">
+          {{ form.description }}
+          {% if form.description.help_text %}<div class="form-text">{{ form.description.help_text }}</div>{% endif %}
+          {% for error in form.description.errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="mb-3 row">
+        <label class="col-sm-3 col-form-label fw-semibold" for="id_receipt">{{ form.receipt.label }}</label>
+        <div class="col-sm-9">
+          {{ form.receipt }}
+          <div class="form-text">Accepted: PDF, PNG, JPG, GIF. Max: 10 MB.</div>
+          <div id="receipt-error" class="text-danger small mt-1" aria-live="polite"></div>
+          <div id="receipt-preview" class="mt-3"></div>
+          {% if form.receipt.help_text %}<div class="form-text">{{ form.receipt.help_text }}</div>{% endif %}
+          {% for error in form.receipt.errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button id="submit-btn" class="btn btn-primary" type="submit">
+          <span id="submit-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+          <span id="submit-text"> Submit</span>
+        </button>
+        <a href="javascript:history.back()" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/expenses.js' %}"></script>
+{% endblock %}
