@@ -16,11 +16,11 @@ class Expense(models.Model):
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
 
-    # If a Workspace model exists, consider changing this FK to 'workspaces.Workspace'.
-    workspace = models.ForeignKey(
+    # Owner is a user who owns the expense list (previously workspace)
+    owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="workspace_expenses",
+        related_name="owned_expenses",
     )
     title = models.CharField(max_length=255)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -53,15 +53,17 @@ class Expense(models.Model):
     def __str__(self) -> str:
         return f"{self.title} - {self.amount} ({self.status})"
 
-    def approve(self, reviewer: settings.AUTH_USER_MODEL) -> None:
+    def approve(self, reviewer) -> None:
+        """Mark this expense approved by reviewer and set reviewed_at."""
         self.status = self.Status.APPROVED
         self.reviewed_by = reviewer
         self.reviewed_at = timezone.now()
-        self.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"]) 
+        self.save()
 
-    def reject(self, reviewer: settings.AUTH_USER_MODEL, notes: str) -> None:
+    def reject(self, reviewer, notes: str = "") -> None:
+        """Mark this expense rejected with optional notes."""
         self.status = self.Status.REJECTED
         self.reviewed_by = reviewer
-        self.review_notes = notes
         self.reviewed_at = timezone.now()
-        self.save(update_fields=["status", "reviewed_by", "review_notes", "reviewed_at", "updated_at"]) 
+        self.review_notes = notes
+        self.save()

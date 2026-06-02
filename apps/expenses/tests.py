@@ -14,12 +14,12 @@ TEST_PASSWORD = os.environ.get("TEST_PASSWORD") or get_random_string(12)
 
 class ExpenseModelTests(TestCase):
     def setUp(self):
-        # create a user to act as both workspace owner and submitter
+        # create a user to act as both owner and submitter
         self.user = User.objects.create_user(username="tester", password=TEST_PASSWORD)
 
     def test_create_expense(self):
         expense = Expense.objects.create(
-            workspace=self.user,
+            owner=self.user,
             title="Business Lunch",
             amount=Decimal("45.50"),
             category="meals",
@@ -27,11 +27,12 @@ class ExpenseModelTests(TestCase):
             submitted_by=self.user,
         )
         self.assertTrue(Expense.objects.exists())
-        self.assertEqual(str(expense), f"{expense.title} — {expense.amount}")
+        # __str__ returns: f"{self.title} - {self.amount} ({self.status})"
+        self.assertEqual(str(expense), f"{expense.title} - {expense.amount} ({expense.status})")
 
     def test_negative_amount_rejected(self):
         expense = Expense(
-            workspace=self.user,
+            owner=self.user,
             title="Faulty Expense",
             amount=Decimal("-10.00"),
             category="other",
