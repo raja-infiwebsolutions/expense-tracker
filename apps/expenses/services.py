@@ -6,7 +6,8 @@ from .models import Expense
 
 
 def get_expenses_for_workspace(workspace_id: int, filters: dict[str, Any]) -> QuerySet:
-    qs = Expense.objects.filter(workspace_id=workspace_id).select_related("submitted_by", "reviewed_by")
+    # workspace_id param kept for backwards compatibility but filters by owner
+    qs = Expense.objects.filter(owner_id=workspace_id).select_related("submitted_by", "reviewed_by", "owner")
     status = filters.get("status")
     if status:
         qs = qs.filter(status=status)
@@ -16,7 +17,7 @@ def get_expenses_for_workspace(workspace_id: int, filters: dict[str, Any]) -> Qu
     category = filters.get("category")
     if category:
         qs = qs.filter(category=category)
-    return qs.order_by("-submitted_at", "-created_at") if hasattr(Expense, "submitted_at") else qs.order_by("-created_at")
+    return qs.order_by("-created_at")
 
 
 def approve_expense(expense_id: int, reviewer_user: Any) -> Expense:
